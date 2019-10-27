@@ -5,6 +5,7 @@ import (
 	_ "Buspro/crc"
 	"C"
 	"bytes"
+	_"encoding/asn1"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -140,7 +141,8 @@ func main() {
 	var sumBuf = []byte{}
 	var renewBuf = []byte{}
 	sendBuf := make([]byte, 256)
-	bufSize := 20
+	var bufSize int
+
 
 	for {
 		num, err := port.Read(readBuf)
@@ -152,12 +154,21 @@ func main() {
 			 fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
 		}
 		if num > 0 {
-			log.Println("enter")
+			log.Println("num:",num)
 			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
 			for index := range readBuf[:num] {
+
 				sumBuf = append(sumBuf, readBuf[index])
+
 				log.Println("index:", index,"readBuf[index]:", readBuf[index] ,"sumBuf:" , sumBuf)
 			}
+
+			if !(ByteToHex(sumBuf[2:3])=="") {
+				log.Println("sumBuf[2]:" , sumBuf[2:3])
+				bufSize = BytesToInt(sumBuf[2:3])+2
+				log.Println("bufSize:" , bufSize)
+			}
+
 			for len(sumBuf) >= bufSize {
 				sendBuf = sumBuf[:bufSize]
 
@@ -169,7 +180,7 @@ func main() {
 					renewBuf = append(renewBuf, sumBuf[index])
 				}
 				sumBuf = renewBuf
-				log.Println("renewed sumBuf: %v, len: %v / Size: %v", sumBuf, len(sumBuf), bufSize)
+				log.Println("renewed sumBuf: ",sumBuf, "len:",len(sumBuf) ,"Size:",bufSize )
 			}
 			log.Println("break")
 		}
