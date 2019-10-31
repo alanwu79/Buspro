@@ -3,23 +3,29 @@ package main
 import (
 	conf "Buspro/config"
 	_ "Buspro/crc"
-	"C"
+
+	//"C"
+	"Buspro/phyDev"
+	"Buspro/sockServicce"
 	"bytes"
-	_"encoding/asn1"
+	_ "encoding/asn1"
 	"encoding/binary"
 	"fmt"
-	"io"
 	_ "io"
-	_"math/big"
-	_"regexp"
-	_"time"
+	_ "math/big"
+	_ "regexp"
+	_ "sync"
+	_ "time"
 
 	//"github.com/goburrow/serial"
-	"github.com/tarm/serial"
 	"log"
+	_ "regexp"
 	"strconv"
-	_"regexp"
+
+	"github.com/tarm/serial"
 )
+
+//var wg sync.WaitGroup
 
 func ByteToHex(data []byte) string {
 	buffer := new(bytes.Buffer)
@@ -35,87 +41,28 @@ func ByteToHex(data []byte) string {
 	return buffer.String()
 }
 
-func bytesTo32Int(b []byte) int {
-	buf := bytes.NewBuffer(b)
-	var tmp uint32
-	binary.Read(buf, binary.BigEndian, &tmp)
-	return int(tmp)
-}
-
-
-func BytesToInt(b []byte) int {
+func bytesToIntU(b []byte) (int, error) {
+	if len(b) == 3 {
+		b = append([]byte{0}, b...)
+	}
 	bytesBuffer := bytes.NewBuffer(b)
-
-	var x int32
-	binary.Read(bytesBuffer, binary.BigEndian, &x)
-
-	return int(x)
+	switch len(b) {
+	case 1:
+		var tmp uint8
+		err := binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		return int(tmp), err
+	case 2:
+		var tmp uint16
+		err := binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		return int(tmp), err
+	case 4:
+		var tmp uint32
+		err := binary.Read(bytesBuffer, binary.BigEndian, &tmp)
+		return int(tmp), err
+	default:
+		return 0, fmt.Errorf("%s", "BytesToInt bytes lenth is invaild!")
+	}
 }
-
-//func Reconnect(port *serial.Port){
-//	buf := make([]byte, 4960)
-//	pos := 0
-//	var content []byte
-//	var message string
-//	result := regexp.Match("aaaa")
-//	log.Println(result)
-//
-//	for{
-//		time.Sleep(1000 * time.Millisecond) //等待回傳所需的時間1000ms
-//		for i := 0; i < 10; i++ {
-//			bytesRead, err := port.Read(buf) //讀資料回來
-//			if err != nil {
-//				log.Println("Read fail")
-//			}
-//			if bytesRead > 0 {
-//				pos += bytesRead
-//				content = append(content, buf[:bytesRead]...)
-//			}
-//		}
-//		log.Println("content=", ByteToHex(content))
-//	}
-//}
-
-
-//func readSizedSerialPortLoop(bufSize int, port *serial.Port) error {
-//	readBuf := make([]byte, 512)
-//	var sumBuf = []byte{}
-//	var renewBuf = []byte{}
-//	sendBuf := make([]byte, 256)
-//
-//
-//	for {
-//		num, err := port.Read(readBuf)
-//		if err == io.EOF {
-//			fmt.Println("EOF:", num)
-//			break
-//		}
-//		if err != nil {
-//			return fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
-//		}
-//		if num > 0 {
-//			log.Println("readBuf: %v, len: %v", readBuf, len(readBuf))
-//			for index := range readBuf[:num] {
-//				sumBuf = append(sumBuf, readBuf[index])
-//			}
-//			for len(sumBuf) >= bufSize {
-//				sendBuf = sumBuf[:bufSize]
-//
-//				// Truncate sumBuf by Size
-//				log.Println("sumBuf: %v, len: %v", sumBuf, len(sumBuf))
-//				log.Println("sumBuf: %v, len: %v", sendBuf, len(sendBuf))
-//
-//				renewBuf = []byte{}
-//				for index := bufSize; index < len(sumBuf); index++ {
-//					renewBuf = append(renewBuf, sumBuf[index])
-//				}
-//				sumBuf = renewBuf
-//				log.Println("renewed sumBuf: %v, len: %v / Size: %v", sumBuf, len(sumBuf), bufSize)
-//			}
-//		}
-//		time.Sleep(1000 * time.Millisecond) //等待回傳所需的時間1000ms
-//	}
-//}
 
 func main() {
 	//開啟SerialPort
@@ -125,98 +72,112 @@ func main() {
 	}
 	defer port.Close() //程式結束時關閉SerialPort
 
+	sockServicce.RunUnix()
 
-
+	writechan := make(chan []byte, 115200)
 	wbuf := []byte{0xAA, 0xAA, 0x10, 0x01, 0xFA, 0x23, 0x9C, 0x00, 0x31, 0x01, 0x05, 0x01, 0x64, 0x00, 0x00, 0x01,
 		0x26, 0xA7}
 
-	_, err = port.Write(wbuf) //寫資料出去
-	if err != nil {
-		log.Fatal(err)
-	}
+	writechan <- wbuf
+	phyDev.Wg.Add(1)
+	go phyDev.ReadSerialPort(port)
+	phyDev.WriteSerial(port, writechan)
 
-//	go readSizedSerialPortLoop(4096,port)
-
-	readBuf := make([]byte, 512)
-	var sumBuf = []byte{}
-	var renewBuf = []byte{}
-	sendBuf := make([]byte, 256)
-	var bufSize int
-
-
-	for {
-		num, err := port.Read(readBuf)
-		if err == io.EOF {
-			fmt.Println("EOF:", num)
-			break
-		}
-		if err != nil {
-			 fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
-		}
-		if num > 0 {
-			log.Println("num:",num)
-			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
-			for index := range readBuf[:num] {
-
-				sumBuf = append(sumBuf, readBuf[index])
-
-				log.Println("index:", index,"readBuf[index]:", readBuf[index] ,"sumBuf:" , sumBuf)
-			}
-
-			if !(ByteToHex(sumBuf[2:3])=="") {
-				log.Println("sumBuf[2]:" , sumBuf[2:3])
-				bufSize = BytesToInt(sumBuf[2:3])+2
-				log.Println("bufSize:" , bufSize)
-			}
-
-			for len(sumBuf) >= bufSize {
-				sendBuf = sumBuf[:bufSize]
-
-				// Truncate sumBuf by Size
-				log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
-				log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
-				renewBuf = []byte{}
-				for index := bufSize; index < len(sumBuf); index++ {
-					renewBuf = append(renewBuf, sumBuf[index])
-				}
-				sumBuf = renewBuf
-				log.Println("renewed sumBuf: ",sumBuf, "len:",len(sumBuf) ,"Size:",bufSize )
-			}
-			log.Println("break")
-		}
-	}
-	//buf := make([]byte, 1024)
-	////pos := 0
-	//var content []byte
-	//var commandSize []byte
-	//var packageSize int64
-	//var headSize int64= 2
-	//var commandSizeHex string
-	//
-	//time.Sleep(10 * time.Millisecond) //等待回傳所需的時間1000ms
-	//for {
-	//	bytesRead, err := port.Read(buf) //讀資料回來
-	//	 if err != nil {
-	//	 	log.Fatal(err)
-	//	 }
-	//	 if bytesRead > 0 {
-	//	 	log.Println("buf = ",buf)
-	//	 	log.Println("bytesRead = ",bytesRead)
-	//
-	//	 	commandSize = buf[2:3]
-	//	 	commandSizeHex= ByteToHex(commandSize)
-	//	 	commandSizeInt, err := strconv.ParseInt(commandSizeHex, 16, 32)
-	//	 	if err != nil {
-	//	 		panic(err)
-	//	 	}
-	//	 	log.Println("commandSizeInt = ",commandSizeInt)
-	//	 	packageSize = commandSizeInt+headSize
-	//	 	log.Println("packageSize = ",packageSize)
-	//		 content = append(content, buf[:commandSizeInt]...)
-	//	 	//log.Println("content1=", ByteToHex(content[:packageSize]))
-	//	 }
-	//
-	//}
-	//log.Println("content2=", ByteToHex(content[:packageSize]))
+	phyDev.Wg.Wait()
 }
 
+//readBuf := make([]byte, 512)
+//var sumBuf = []byte{}
+//var renewBuf = []byte{}
+//sendBuf := make([]byte, 256)
+//var commandSize = 0
+//bufSize := 4096
+//headSize := 2
+//
+//for {
+//	num, err := port.Read(readBuf)
+//	if err == io.EOF {
+//		fmt.Println("EOF:", num)
+//		break
+//	}
+//	if err != nil {
+//		 fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
+//	}
+//	if num > 0 {
+//		log.Println("num:",num)
+//		//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
+//		for index := range readBuf[:num] {
+//
+//			sumBuf = append(sumBuf, readBuf[index])
+//
+//			log.Println("index:", index,"readBuf[index]:", readBuf[index] ,"sumBuf:" , sumBuf)
+//		}
+//
+//		if(ByteToHex(sumBuf[2:3])!="00") {
+//			commandSize,err = bytesToIntU(sumBuf[2:3])
+//			if err != nil {
+//				log.Println("bytesToIntU Fail:")
+//				break
+//			}
+//
+//			bufSize = commandSize + headSize
+//
+//			log.Println("bufSize:" , bufSize)
+//		}
+//
+//		for len(sumBuf) >= bufSize {
+//			sendBuf = sumBuf[:bufSize]
+//
+//			// Truncate sumBuf by Size
+//			log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
+//			log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
+//			renewBuf = []byte{}
+//			for index := bufSize; index < len(sumBuf); index++ {
+//				renewBuf = append(renewBuf, sumBuf[index])
+//				log.Println("renewBuf[0]:",renewBuf[0])
+//				if(renewBuf[0])!=byte(170) {
+//					renewBuf = renewBuf[1:]
+//				}
+//			}
+//			log.Println("renewBuf: ",renewBuf)
+//			sumBuf = renewBuf
+//			log.Println("renewed sumBuf: ",sumBuf, "len:",len(sumBuf) ,"Size:",bufSize )
+//		}
+//		log.Println("break")
+//	}
+//}
+//
+
+//buf := make([]byte, 1024)
+////pos := 0
+//var content []byte
+//var commandSize []byte
+//var packageSize int64
+//var headSize int64= 2
+//var commandSizeHex string
+//
+//time.Sleep(10 * time.Millisecond) //等待回傳所需的時間1000ms
+//for {
+//	bytesRead, err := port.Read(buf) //讀資料回來
+//	 if err != nil {
+//	 	log.Fatal(err)
+//	 }
+//	 if bytesRead > 0 {
+//	 	log.Println("buf = ",buf)
+//	 	log.Println("bytesRead = ",bytesRead)
+//
+//	 	commandSize = buf[2:3]
+//	 	commandSizeHex= ByteToHex(commandSize)
+//	 	commandSizeInt, err := strconv.ParseInt(commandSizeHex, 16, 32)
+//	 	if err != nil {
+//	 		panic(err)
+//	 	}
+//	 	log.Println("commandSizeInt = ",commandSizeInt)
+//	 	packageSize = commandSizeInt+headSize
+//	 	log.Println("packageSize = ",packageSize)
+//		 content = append(content, buf[:commandSizeInt]...)
+//	 	//log.Println("content1=", ByteToHex(content[:packageSize]))
+//	 }
+//
+//}
+//log.Println("content2=", ByteToHex(content[:packageSize]))
