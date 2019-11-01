@@ -3,15 +3,15 @@ package sockServicce
 import (
 	"bytes"
 	"encoding/binary"
-	"net"
-	_"syscall"
-	"os"
-	_"encoding/json"
+	_ "encoding/json"
 	"fmt"
-
-	)
+	"net"
+	"os"
+	_ "syscall"
+)
 
 var unixCon *net.UnixConn
+
 const unixSocketFile = "/tmp/testunix.sock"
 
 func ConnectToUnixSocket() bool {
@@ -49,7 +49,7 @@ func SendRequest(conn *net.UnixConn, data []byte) {
 //读结果
 func ReadUnix(listener *net.UnixConn) {
 	for {
-		buf :=make([]byte, 1400)
+		buf := make([]byte, 1400)
 		size, remote, err := listener.ReadFromUnix(buf)
 		if err != nil {
 			fmt.Println(err)
@@ -76,7 +76,7 @@ func RunUnix() {
 		0x26, 0xA7}
 	//send to its subs
 	go ReadUnix(unixCon)
-	go SendRequest(unixCon,wsocketbuf)
+	go SendRequest(unixCon, wsocketbuf)
 
 	unixCon.Close()
 }

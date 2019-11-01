@@ -6,7 +6,9 @@ import (
 
 	//"C"
 	"Buspro/phyDev"
-	"Buspro/sockServicce"
+	_ "Buspro/transfer"
+
+	//"Buspro/sockServicce"
 	"bytes"
 	_ "encoding/asn1"
 	"encoding/binary"
@@ -24,8 +26,6 @@ import (
 
 	"github.com/tarm/serial"
 )
-
-//var wg sync.WaitGroup
 
 func ByteToHex(data []byte) string {
 	buffer := new(bytes.Buffer)
@@ -65,25 +65,27 @@ func bytesToIntU(b []byte) (int, error) {
 }
 
 func main() {
-	//開啟SerialPort
-	port, err := serial.OpenPort(conf.Conf)
+
+	port, err := serial.OpenPort(conf.Conf) //開啟SerialPort
 	if err != nil {
 		log.Fatal("Comport open fail")
 	}
 	defer port.Close() //程式結束時關閉SerialPort
 
-	sockServicce.RunUnix()
+	//sockServicce.RunUnix()
 
-	writechan := make(chan []byte, 115200)
+	readPipe := make(chan []byte)
+	writepipe := make(chan []byte, 115200)
 	wbuf := []byte{0xAA, 0xAA, 0x10, 0x01, 0xFA, 0x23, 0x9C, 0x00, 0x31, 0x01, 0x05, 0x01, 0x64, 0x00, 0x00, 0x01,
 		0x26, 0xA7}
 
-	writechan <- wbuf
+	writepipe <- wbuf
 	phyDev.Wg.Add(1)
-	go phyDev.ReadSerialPort(port)
-	phyDev.WriteSerial(port, writechan)
+	go phyDev.ReadSerialPort(port, readPipe)
+	//phyDev.WriteSerial(port, writepipe)
 
 	phyDev.Wg.Wait()
+
 }
 
 //readBuf := make([]byte, 512)
