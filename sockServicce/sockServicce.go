@@ -1,8 +1,8 @@
 package sockServicce
 
 import (
-	"bytes"
-	"encoding/binary"
+	_ "bytes"
+	_ "encoding/binary"
 	_ "encoding/json"
 	"fmt"
 	"net"
@@ -36,14 +36,23 @@ func CloseUnixSocket() {
 	}
 }
 
-func SendRequest(conn *net.UnixConn, data []byte) {
-	buf := new(bytes.Buffer)
-	msglen := uint32(len(data))
+func ReadFromTransAndSendUnix(conn *net.UnixConn, channel chan []byte) {
+	defer conn.Close()
+	for {
+		data := <-channel
+		_, err := conn.Write(data)
+		if err != nil {
+			println("err")
+		}
+		println("Write to:", conn.RemoteAddr(), string(data))
+	}
+	// buf := new(bytes.Buffer)
+	// msglen := uint32(len(data))
 
-	binary.Write(buf, binary.BigEndian, &msglen)
-	data = append(buf.Bytes(), data...)
+	// binary.Write(buf, binary.BigEndian, &msglen)
+	// data = append(buf.Bytes(), data...)
 
-	conn.Write(data)
+	// conn.Write(data)
 }
 
 //读结果
@@ -65,21 +74,21 @@ func checkError(err error) {
 	}
 }
 
-func RunUnix() {
+// func RunUnix() {
 
-	addr, err := net.ResolveUnixAddr("unix", unixSocketFile)
-	checkError(err)
-	unixCon, err = net.DialUnix("unix", nil, addr)
-	//defer unixCon.Close()
+// 	addr, err := net.ResolveUnixAddr("unix", unixSocketFile)
+// 	checkError(err)
+// 	unixCon, err = net.DialUnix("unix", nil, addr)
+// 	//defer unixCon.Close()
 
-	wsocketbuf := []byte{0xAA, 0xAA, 0x10, 0x01, 0xFA, 0x23, 0x9C, 0x00, 0x31, 0x01, 0x05, 0x01, 0x64, 0x00, 0x00, 0x01,
-		0x26, 0xA7}
-	//send to its subs
-	go ReadUnix(unixCon)
-	go SendRequest(unixCon, wsocketbuf)
+// 	wsocketbuf := []byte{0xAA, 0xAA, 0x10, 0x01, 0xFA, 0x23, 0x9C, 0x00, 0x31, 0x01, 0x05, 0x01, 0x64, 0x00, 0x00, 0x01,
+// 		0x26, 0xA7}
+// 	//send to its subs
+// 	go ReadUnix(unixCon)
+// 	go SendRequest(unixCon, wsocketbuf)
 
-	unixCon.Close()
-}
+// 	unixCon.Close()
+// }
 
 //func onMessageReceived(conn *net.UnixConn) {
 //	//for { // io Read will wait here, we don't need for loop to check

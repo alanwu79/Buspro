@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"sync"
 
-	"Buspro/transfer"
-
 	//"github.com/goburrow/serial"
 	"io"
 	"log"
@@ -77,6 +75,85 @@ func ReadSerialPort(port *serial.Port, readpipe chan []byte) {
 	var sumBuf = []byte{}
 	var renewBuf = []byte{}
 	sendBuf := make([]byte, 256)
+	var payloadSize = 0
+	bufSize := 4096
+	headSize := 2
+	renewBuf = []byte{}
+
+	for {
+		num, err := port.Read(readBuf)
+		if err == io.EOF {
+			fmt.Println("EOF:", num)
+			break
+		}
+		if err != nil {
+			fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
+		}
+		// 如果讀到byte,append到sumbuf
+		if num > 0 {
+			log.Println("num:", num)
+			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
+			for index := range readBuf[:num] {
+				sumBuf = append(sumBuf, readBuf[index])
+				log.Println("index:", index, "readBuf[index]:", readBuf[index], "sumBuf:", sumBuf)
+
+			}
+
+			// 判斷第3個byte是否有值
+			if len(sumBuf) >= 3 {
+				payloadSize, err = bytesToIntU(sumBuf[2:3])
+				if err != nil {
+					log.Println("bufSize err:")
+					break
+				}
+				bufSize = payloadSize + headSize
+				log.Println("bufSize:", bufSize)
+			}
+
+			// if ByteToHex(sumBuf[2:3]) != "00" {
+			// 	payloadSize, err = bytesToIntU(sumBuf[2:3])
+			// 	if err != nil {
+			// 		log.Println("bufSize err:")
+			// 		break
+			// 	}
+			// 	bufSize = payloadSize + headSize
+			// 	log.Println("bufSize:", bufSize)
+			// }
+
+			for len(sumBuf) >= bufSize {
+				sendBuf = sumBuf[:bufSize]
+				readpipe <- sendBuf
+				// Truncate sumBuf by Size
+				log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
+				log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
+				renewBuf = []byte{}
+				for index := bufSize; index < len(sumBuf); index++ {
+					if (sumBuf[index]) != byte(170) {
+						index++
+						continue
+					}
+					renewBuf = append(renewBuf, sumBuf[index])
+					log.Println("renewBuf[0]:", renewBuf[0])
+					if (renewBuf[0]) != byte(170) {
+						renewBuf = renewBuf[1:]
+					}
+				}
+				log.Println("renewBuf: ", renewBuf)
+				sumBuf = renewBuf
+				log.Println("renewed sumBuf: ", sumBuf, "len:", len(sumBuf), "Size:", bufSize)
+			}
+			log.Println("break")
+		}
+	}
+	Wg.Done()
+}
+
+func _ReadSerialPort(port *serial.Port, readpipe chan []byte) {
+
+	readBuf := make([]byte, 256)
+	var sumBuf = []byte{}
+	var renewBuf = []byte{}
+	sendBuf := make([]byte, 256)
 	var commandSize = 0
 	bufSize := 4096
 	headSize := 2
@@ -91,13 +168,13 @@ func ReadSerialPort(port *serial.Port, readpipe chan []byte) {
 			fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
 		}
 		if num > 0 {
-			log.Println("num:", num)
 			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
 			for index := range readBuf[:num] {
 
 				sumBuf = append(sumBuf, readBuf[index])
+				log.Println("readBuf[index]:", readBuf[index])
+				log.Println("sumBuf:", sumBuf)
 
-				log.Println("index:", index, "readBuf[index]:", readBuf[index], "sumBuf:", sumBuf)
 			}
 
 			if ByteToHex(sumBuf[2:3]) != "00" {
@@ -108,31 +185,20 @@ func ReadSerialPort(port *serial.Port, readpipe chan []byte) {
 				}
 
 				bufSize = commandSize + headSize
-
-				log.Println("bufSize:", bufSize)
 			}
 
 			for len(sumBuf) >= bufSize {
 				sendBuf = sumBuf[:bufSize]
 				readpipe <- sendBuf
-				go transfer.ReadPipeTransJSON(readpipe)
-
 				// Truncate sumBuf by Size
 				log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
 				log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
 				renewBuf = []byte{}
 				for index := bufSize; index < len(sumBuf); index++ {
 					renewBuf = append(renewBuf, sumBuf[index])
-					log.Println("renewBuf[0]:", renewBuf[0])
-					if (renewBuf[0]) != byte(170) {
-						renewBuf = renewBuf[1:]
-					}
 				}
-				log.Println("renewBuf: ", renewBuf)
 				sumBuf = renewBuf
-				log.Println("renewed sumBuf: ", sumBuf, "len:", len(sumBuf), "Size:", bufSize)
 			}
-			log.Println("break")
 		}
 	}
 	Wg.Done()

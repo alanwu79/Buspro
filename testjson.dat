@@ -1,0 +1,264 @@
+{
+  "BusProDevList": [
+    {
+      "subnetID": 1,
+      "devices": [
+        {
+          "deviceType": 264,
+          "hwInfo": {
+            "class": "S",
+            "brand": "HDL",
+            "model": "MPL8.48-A"
+          },
+          "name": "Bus Pro Switch Panel 1",
+          "image": "HDL_MPL8.48-A.png",
+          "heartbeat": 5,
+          "protocolInfo": [
+            {
+              "protocol": "BusPro"
+            }
+          ],
+          "commInfo": {
+            "protocol4GW": "BusPro",
+            "BusPro": {
+              "subnetId": 1,
+              "deviceId": 3
+            }
+          },
+          "attrs": [
+            {
+              "objId": 1,
+              "funId": "Swtich",
+              "name": "Key 1",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.button"
+              ],
+              "page": 1,
+              "bIdx": 1,
+              "btn": 1,
+              "style": 0,
+              "lpress": false,
+              "hidden": false
+            },
+            {
+              "objId": 2,
+              "funId": "Curtain",
+              "name": "Key 2",
+              "opCode": 58336,
+              "fp": 2,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "integer",
+              "rt": [
+                "bh.r.attr.button"
+              ],
+              "page": 1,
+              "valueDef": {
+                "0": "停止",
+                "1": "打开",
+                "2": "关闭"
+              },
+              "bIdx": 2,
+              "btn": 2,
+              "style": 0,
+              "lpress": false,
+              "hidden": false
+            },
+            {
+              "objId": 3,
+              "funId": "Curtain",
+              "name": "Key 2",
+              "opCode": 58336,
+              "fp": 2,
+              "flags": 92,
+              "valueKey": "openLevel",
+              "valueType": "integer",
+              "rt": [
+                "bh.r.attr.button"
+              ],
+              "page": 1,
+              "bIdx": 2,
+              "btn": 2,
+              "style": 0,
+              "lpress": true,
+              "hidden": false
+            },
+            {
+              "objId": 4,
+              "funId": "Swtich",
+              "name": "key 3",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.button"
+              ],
+              "page": 1,
+              "bIdx": 3,
+              "btn": 3,
+              "style": 1,
+              "lpress": false,
+              "hidden": false
+            },
+            {
+              "objId": 5,
+              "page": 1,
+              "funId": "Dimming",
+              "name": "key 3",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "integer",
+              "rt": [
+                "bh.r.attr.button"
+              ],
+              "bIdx": 3,
+              "btn": 3,
+              "style": 1,
+              "lpress": true,
+              "hidden": false
+            },
+            {
+              "objId": 6,
+              "fp": 2,
+              "page": 1,
+              "funId": "Temperature",
+              "name": "Current Temprature",
+              "opCode": 58341,
+              "flags": 92,
+              "valueKey": "temperature",
+              "valueType": "integer",
+              "unit": "°C",
+              "unitName": "摄氏度",
+              "rt": [
+                "bh.r.attr.sensor",
+                "oic.r.temperature"
+              ],
+              "range": [
+                -5,
+                45
+              ],
+              "step": 1
+            },
+            {
+              "objId": 7,
+              "funId": "Heartbeat",
+              "name": "心跳",
+              "opCode": 61439,
+              "fp": 2,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "boolean",
+              "appHidden": true,
+              "rt": [
+                "bh.r.attr.event"
+              ]
+            }
+          ],
+          "switch": {
+            "layout": "vertical",
+            "btnCnt": 4,
+            "pageCount": 1,
+            "modifyStyle": false,
+            "hasLPress": false
+          }
+        },
+        {
+          "deviceType": 60930,
+          "hwInfo": {
+            "class": "A",
+            "brand": "HDL",
+            "model": "MR0410.431"
+          },
+          "name": "Bus Pro Light Actuator 1",
+          "image": "HDL_MR0410.431.png",
+          "heartbeat": 5,
+          "protocolInfo": [
+            {
+              "protocol": "BusPro"
+            }
+          ],
+          "BusPro": {
+            "chCnt": 4
+          },
+          "commInfo": {
+            "protocol4GW": "BusPro",
+            "BusPro": {
+              "subnetId": 1,
+              "deviceId": 3
+            }
+          },
+          "attrs": [
+            {
+              "objId": 1,
+              "funId": "Switch",
+              "name": "开关",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.actuator"
+              ],
+              "chId": 1
+            },
+            {
+              "objId": 2,
+              "funId": "Switch",
+              "name": "开关",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "dpt": "1.001",
+              "createdRT": "oic.r.switch.binary",
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.actuator"
+              ],
+              "chId": 2
+            },
+            {
+              "objId": 3,
+              "funId": "Switch",
+              "name": "开关",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "createdRT": "oic.r.switch.binary",
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.actuator"
+              ],
+              "chId": 3
+            },
+            {
+              "objId": 4,
+              "funId": "Switch",
+              "name": "开关",
+              "opCode": 49,
+              "fp": 1,
+              "flags": 92,
+              "valueKey": "value",
+              "valueType": "boolean",
+              "rt": [
+                "bh.r.attr.actuator"
+              ],
+              "chId": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
