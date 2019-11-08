@@ -3,7 +3,7 @@ package transfer
 import (
 	"bytes"
 	"encoding/binary"
-	_ "encoding/json"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strconv"
@@ -78,12 +78,12 @@ func ReadFromDevTransJSON(readpipe chan []byte) {
 		// fmt.Println("Opcode:", m.Opcode)
 		// fmt.Println("payload:", m.Payload)
 
-		// jsonBytes, err := json.Marshal(m)
-		// if err != nil {
-		// 	log.Println("bytesToIntU Fail:")
-		// }
+		jsonBytes, err := json.Marshal(m)
+		if err != nil {
+			log.Println("bytesToIntU Fail:")
+		}
 
-		//fmt.Printf("json 结果:%s\n", jsonBytes)
+		fmt.Printf("json %s\n", jsonBytes)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/stellar/go/crc16"
 	"github.com/tarm/serial"
 )
 
@@ -68,124 +69,84 @@ func WriteSerial(port *serial.Port, writepipe <-chan []byte) {
 	}
 }
 
-func ReadSerialPort(port *serial.Port, readpipe chan []byte) {
-	log.Println("read")
-
-	readBuf := make([]byte, 256)
-	var sumBuf = []byte{}
-	var renewBuf = []byte{}
-	sendBuf := make([]byte, 256)
-	var payloadSize = 0
-	bufSize := 4096
-	headSize := 2
-	renewBuf = []byte{}
-
-	for {
-		num, err := port.Read(readBuf)
-		if err == io.EOF {
-			fmt.Println("EOF:", num)
-			break
-		}
-		if err != nil {
-			fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
-		}
-		// 如果讀到byte,append到sumbuf
-		if num > 0 {
-			log.Println("num:", num)
-			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
-			for index := range readBuf[:num] {
-				sumBuf = append(sumBuf, readBuf[index])
-				log.Println("index:", index, "readBuf[index]:", readBuf[index], "sumBuf:", sumBuf)
-
-			}
-
-			// 判斷第3個byte是否有值
-			if len(sumBuf) >= 3 {
-				payloadSize, err = bytesToIntU(sumBuf[2:3])
-				if err != nil {
-					log.Println("bufSize err:")
-					break
-				}
-				bufSize = payloadSize + headSize
-				log.Println("bufSize:", bufSize)
-			}
-
-			// if ByteToHex(sumBuf[2:3]) != "00" {
-			// 	payloadSize, err = bytesToIntU(sumBuf[2:3])
-			// 	if err != nil {
-			// 		log.Println("bufSize err:")
-			// 		break
-			// 	}
-			// 	bufSize = payloadSize + headSize
-			// 	log.Println("bufSize:", bufSize)
-			// }
-
-			for len(sumBuf) >= bufSize {
-				sendBuf = sumBuf[:bufSize]
-				readpipe <- sendBuf
-				// Truncate sumBuf by Size
-				log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
-				log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
-				renewBuf = []byte{}
-				for index := bufSize; index < len(sumBuf); index++ {
-					if (sumBuf[index]) != byte(170) {
-						index++
-						continue
-					}
-					renewBuf = append(renewBuf, sumBuf[index])
-					log.Println("renewBuf[0]:", renewBuf[0])
-					if (renewBuf[0]) != byte(170) {
-						renewBuf = renewBuf[1:]
-					}
-				}
-				log.Println("renewBuf: ", renewBuf)
-				sumBuf = renewBuf
-				log.Println("renewed sumBuf: ", sumBuf, "len:", len(sumBuf), "Size:", bufSize)
-			}
-			log.Println("break")
-		}
-	}
-	Wg.Done()
-}
-
-func _ReadSerialPort(port *serial.Port, readpipe chan []byte) {
-
-	readBuf := make([]byte, 256)
-	var sumBuf = []byte{}
-	var renewBuf = []byte{}
-	sendBuf := make([]byte, 256)
-	var commandSize = 0
-	bufSize := 4096
+func CheckHeadAndLen(sumBuf []byte, bufSize int) ([]byte, int) {
+	commandSize := 0
 	headSize := 2
 
-	for {
-		num, err := port.Read(readBuf)
-		if err == io.EOF {
-			fmt.Println("EOF:", num)
-			break
-		}
-		if err != nil {
-			fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
-		}
-		if num > 0 {
-			//log.Println("readBuf:", readBuf ,"len:" , len(readBuf))
-			for index := range readBuf[:num] {
-
-				sumBuf = append(sumBuf, readBuf[index])
-				log.Println("readBuf[index]:", readBuf[index])
-				log.Println("sumBuf:", sumBuf)
-
+	for j := range sumBuf[:] {
+		if j == 0 {
+			if (sumBuf[j] != byte(170) && sumBuf[j+1] != byte(170)) || (sumBuf[j] == byte(170) && sumBuf[j+1] != byte(170)) {
+				sumBuf = append(sumBuf[2:])
+			} else if sumBuf[j] != byte(170) && sumBuf[j+1] == byte(170) {
+				sumBuf = append(sumBuf[1:])
 			}
+		}
 
-			if ByteToHex(sumBuf[2:3]) != "00" {
-				commandSize, err = bytesToIntU(sumBuf[2:3])
-				if err != nil {
-					log.Println("bytesToIntU Fail:")
-					break
-				}
-
+		if j == 2 {
+			if sumBuf[j] > byte(78) || sumBuf[j] <= byte(11) {
+				sumBuf = append(sumBuf[3:])
+			} else {
+				commandSize, _ = bytesToIntU(sumBuf[2:3])
 				bufSize = commandSize + headSize
 			}
+		}
+	}
+	return sumBuf, bufSize
+}
+
+func ReadSerialPort(port *serial.Port, readpipe chan []byte) {
+
+	readBuf := make([]byte, 256)
+	var sumBuf = []byte{}
+	sendBuf := make([]byte, 256)
+	bufSize := 4096
+
+	for {
+		num, err := port.Read(readBuf)
+		if err == io.EOF {
+			fmt.Println("EOF:", num)
+			break
+		}
+		if err != nil {
+			fmt.Errorf("cannnot open serial port: serialPort: %v, Error: %v", port, err)
+		}
+		if num > 0 {
+			for index := range readBuf[:num] {
+				sumBuf = append(sumBuf, readBuf[index])
+				log.Println("readBuf[index]:", readBuf[index])
+				log.Println("sumBuf:", sumBuf, "Len (sumBuf):", len(sumBuf))
+			}
+
+			if len(sumBuf) > 3 {
+				sumBuf, bufSize = CheckHeadAndLen(sumBuf, bufSize)
+				// for j := range sumBuf[:] {
+				// if j == 0 {
+				// 	if (sumBuf[j] != byte(170) && sumBuf[j+1] != byte(170)) || (sumBuf[j] == byte(170) && sumBuf[j+1] != byte(170)) {
+				// 		sumBuf = append(sumBuf[2:])
+				// 	} else if sumBuf[j] != byte(170) && sumBuf[j+1] == byte(170) {
+				// 		sumBuf = append(sumBuf[1:])
+				// 	}
+				// }
+
+				// if j == 2 {
+				// 	if sumBuf[j] > byte(78) || sumBuf[j] <= byte(11) {
+				// 		sumBuf = append(sumBuf[3:])
+				// 	} else {
+				// 		commandSize, _ = bytesToIntU(sumBuf[2:3])
+				// 		bufSize = commandSize + headSize
+				// 	}
+				// }
+				// }
+			}
+
+			if len(sumBuf) >= bufSize {
+				//fmt.Print("CRC:%v", crc16.Checksum(sumBuf[2:bufSize-2]))
+				su, _ := bytesToIntU(sumBuf[bufSize-2 : bufSize])
+				cr, _ := bytesToIntU(crc16.Checksum(sumBuf[2 : bufSize-2]))
+				if su != cr {
+					sumBuf = append(sumBuf[bufSize:])
+				}
+			}
 
 			for len(sumBuf) >= bufSize {
 				sendBuf = sumBuf[:bufSize]
@@ -193,11 +154,8 @@ func _ReadSerialPort(port *serial.Port, readpipe chan []byte) {
 				// Truncate sumBuf by Size
 				log.Println("sumBuf: ", sumBuf, "len(sumBuf): ", len(sumBuf))
 				log.Println("sendBuf: ", sendBuf, "len(sendBuf): ", len(sendBuf))
-				renewBuf = []byte{}
-				for index := bufSize; index < len(sumBuf); index++ {
-					renewBuf = append(renewBuf, sumBuf[index])
-				}
-				sumBuf = renewBuf
+				sumBuf = append(sumBuf[bufSize:len(sumBuf)])
+				log.Println("Renew sumBuf:", sumBuf, "Renew Len :", len(sumBuf))
 			}
 		}
 	}
